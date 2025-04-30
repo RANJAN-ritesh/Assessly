@@ -1,0 +1,137 @@
+**I. Frontend (Vite - React->with ts)**
+
+**A. Candidate Interface**
+
+1.  **Homepage/Assessment Initiation Page:**
+    * Design the layout for selecting subjects, topics, and duration.
+    * Implement dropdown/selectable components for subjects (fetching data from the backend).
+    * Dynamically display topics based on the selected subject (fetching data from the backend).
+    * Allow selection of up to 2 subjects.
+    * Within each selected subject, allow selection of up to 3 topics.
+    * Implement a duration selection (dropdown/radio buttons) ranging from 1 to 4 hours.
+    * Create a "Start Assessment" button that triggers navigation to the assessment page and sends the selected criteria to the backend.
+    * Cool styling for a user-friendly interface , the theme is dark and gradient way.
+
+2.  **Assessment Page:**
+    * Design a two-column layout: problem statements on the left, code editor on the right.
+    * Display problem statements fetched from the backend based on the selected subjects and topics.
+    * Implement a code editor component that supports HTML, JS, Python, and C++ (consider using libraries like Monaco Editor or CodeMirror).
+    * Display a countdown timer showing the remaining assessment time.
+    * Potentially display navigation for moving between problem statements (if multiple problems are presented simultaneously).
+    * An "End Assessment" button that allows the candidate to manually finish the test.
+
+3.  **Assessment Summary Page:**
+    * Display a summary of the attempted problems.
+    * Show the time spent on each problem (this will require tracking time during the assessment).
+    * A "Download Assessment" button to download the problem statements (likely as a PDF or text file).
+    * A clear message indicating the assessment is complete.
+
+**B. Admin Interface (Hardcoded Credential)**
+
+1.  **Admin Login Page:**
+    * A simple page with username and password fields (using the hardcoded credential).
+    * Logic to authenticate against the hardcoded admin credentials.
+    * Navigation to the admin dashboard upon successful login.
+
+2.  **Admin Dashboard:**
+    * Navigation menu for managing subjects, topics, and problems.
+
+3.  **Subject Management:**
+    * Display a list of existing subjects.
+    * Form to add new subjects.
+    * Functionality to edit existing subject names.
+    * Functionality to delete subjects.
+
+4.  **Topic Management:**
+    * Dropdown to select a subject.
+    * Display a list of topics associated with the selected subject.
+    * Form to add new topics to the selected subject.
+    * Functionality to edit existing topic names.
+    * Functionality to delete topics.
+
+5.  **Problem Statement Management:**
+    * Dropdown to select a subject.
+    * Dropdown to select a topic within the chosen subject.
+    * Form to create new problem statements, including:
+        * Problem title/identifier.
+        * Detailed problem description (potentially with rich text editing).
+        * Associated programming languages (HTML, JS, Python, C++ - for context, not necessarily enforced).
+    * Display a list of problem statements for the selected subject and topic.
+    * Functionality to edit existing problem statements.
+    * Functionality to delete problem statements.
+
+**II. Backend (Node.js + MongoDB)**
+
+1.  **Database Schema Design (MongoDB):**
+    * **Subjects Collection:** `_id`, `name`
+    * **Topics Collection:** `_id`, `subjectId` (reference to Subjects), `name`
+    * **Problems Collection:** `_id`, `subjectId` (reference to Subjects), `topicId` (reference to Topics), `title`, `description`
+
+2.  **API Endpoints:**
+    * `/api/subjects`:
+        * `GET`: Retrieve all subjects.
+        * `POST` (Admin Auth required): Add a new subject.
+        * `PUT/:id` (Admin Auth required): Update a subject.
+        * `DELETE/:id` (Admin Auth required): Delete a subject.
+    * `/api/topics/:subjectId`:
+        * `GET`: Retrieve all topics for a given subject.
+        * `POST` (Admin Auth required): Add a new topic to a subject.
+    * `/api/topics/:id`:
+        * `PUT` (Admin Auth required): Update a topic.
+        * `DELETE` (Admin Auth required): Delete a topic.
+    * `/api/problems/:subjectId/:topicId`:
+        * `GET`: Retrieve all problems for a given subject and topic.
+        * `POST` (Admin Auth required): Add a new problem.
+    * `/api/problems/:id`:
+        * `GET`: Retrieve a specific problem.
+        * `PUT` (Admin Auth required): Update a problem.
+        * `DELETE` (Admin Auth required): Delete a problem.
+    * `/api/assessment/start`:
+        * `POST`: Receive selected subjects, topics, and duration from the candidate.
+        * Logic to fetch a set of random problems based on the selection.
+        * Return the problem statements to the frontend.
+        * Potentially store assessment start time and selected problems in a temporary collection (if needed for tracking).
+    * `/api/assessment/end`:
+        * `POST`: Receive assessment end time and attempted problem details (if you plan to track submissions later).
+        * Potentially update the temporary assessment data.
+
+3.  **Admin Authentication Middleware:**
+    * Implement middleware to check for the hardcoded admin credentials for protected routes.
+
+4.  **Database Connection:**
+    * Establish a connection to the MongoDB database.
+
+**III. Core Functionality & Logic**
+
+1.  **Problem Selection Logic:**
+    * Implement the backend logic to fetch a relevant set of problems when an assessment starts, based on the candidate's subject and topic selections. You'll need a strategy for how many problems to select from each chosen topic.
+
+2.  **Timer Management:**
+    * Frontend implementation of the countdown timer.
+    * Backend might need to store the assessment duration for reference.
+
+3.  **Assessment Tracking (Basic):**
+    * On the frontend, track the time spent on each problem (when the user navigates or focuses on a problem).
+    * Pass this information to the backend when the assessment ends.
+
+4.  **Download Assessment Feature:**
+    * Backend endpoint to generate a document (PDF or text) containing the problem statements for the completed assessment.
+    * Frontend logic to trigger the download from this endpoint.
+
+**IV. Deployment (Considerations)**
+
+* How will you deploy the frontend (Vite build output)?
+* How will you deploy the Node.js backend?
+* Will you need a database hosting service for MongoDB?
+
+**Next Steps:**
+
+1.  **Choose your frontend framework** (React, Vue, or Svelte).
+2.  **Set up your development environment** for both frontend and backend.
+3.  **Start with the backend API design and database schema.**
+4.  **Implement the admin interface** for managing content.
+5.  **Develop the candidate interface** for selecting assessment parameters and taking the test.
+6.  **Integrate the frontend and backend** through the defined APIs.
+7.  **Implement the assessment summary and download features.**
+
+This detailed task list should give you a solid foundation to start building your assessment application. Let me know if you have any specific questions about any of these tasks!
