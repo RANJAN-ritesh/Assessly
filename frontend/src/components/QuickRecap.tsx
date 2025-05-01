@@ -11,6 +11,8 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+
 interface QuickRecapProps {
   open: boolean;
   onClose: () => void;
@@ -27,7 +29,7 @@ const QuickRecap: React.FC<QuickRecapProps> = ({ open, onClose, subject, topics 
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('http://localhost:3000/api/recaps', {
+      const response = await fetch(`${API_BASE_URL}/api/recaps`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -41,6 +43,7 @@ const QuickRecap: React.FC<QuickRecapProps> = ({ open, onClose, subject, topics 
         setError('Failed to generate recap. Please try again.');
       }
     } catch (error) {
+      console.error('Error fetching recap:', error);
       setError('Failed to generate recap. Please try again.');
     } finally {
       setLoading(false);

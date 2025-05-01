@@ -39,6 +39,8 @@ interface AssessmentSummary {
   };
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+
 const AssessmentSummary = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -71,7 +73,7 @@ const AssessmentSummary = () => {
     setDownloading(true);
     try {
       const response = await axios.post(
-        'http://localhost:3000/api/assessment/download',
+        `${API_BASE_URL}/api/assessment/download`,
         { assessmentData: summaryData },
         { responseType: 'blob' }
       );

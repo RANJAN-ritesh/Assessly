@@ -14,6 +14,16 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Get all subjects (Admin only)
+router.get('/admin', authenticateAdmin, async (req, res) => {
+  try {
+    const subjects = await Subject.find();
+    res.json(subjects);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching subjects' });
+  }
+});
+
 // Create a new subject (Admin only)
 router.post('/', authenticateAdmin, async (req, res) => {
   try {

@@ -4,11 +4,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import HomePage from './pages/HomePage';
 import AssessmentPage from './pages/AssessmentPage';
 import AssessmentSummary from './pages/AssessmentSummary';
-import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
-import SubjectManagement from './pages/SubjectManagement';
-import TopicManagement from './pages/TopicManagement';
-import ProblemManagement from './pages/ProblemManagement';
 
 const darkTheme = createTheme({
   palette: {
@@ -110,11 +106,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/assessment" element={<AssessmentPage />} />
           <Route path="/summary" element={<AssessmentSummary />} />
-          <Route path="/admin/login" element={<AdminLogin />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/subjects" element={<SubjectManagement />} />
-          <Route path="/admin/topics" element={<TopicManagement />} />
-          <Route path="/admin/problems" element={<ProblemManagement />} />
+          <Route path="/admin" element={<AdminDashboard />} />
         </Routes>
       </Router>
     </ThemeProvider>

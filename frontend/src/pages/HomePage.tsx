@@ -10,6 +10,8 @@ import QuickRecap from '../components/QuickRecap';
 import CometEffects from '../components/CometEffects';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
+import AdminIcon from '@mui/icons-material/AdminPanelSettings';
+import AdminAuthDialog from '../components/AdminAuthDialog';
 
 interface Subject {
   _id: string;
@@ -21,6 +23,8 @@ interface Topic {
   name: string;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+
 const HomePage = () => {
   const navigate = useNavigate();
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -30,6 +34,7 @@ const HomePage = () => {
   const [duration, setDuration] = useState<number>(60);
   const [showRecap, setShowRecap] = useState(false);
   const [currentSubjectIndex, setCurrentSubjectIndex] = useState(0);
+  const [openAdminAuth, setOpenAdminAuth] = useState(false);
 
   useEffect(() => {
     fetchSubjects();
@@ -43,7 +48,7 @@ const HomePage = () => {
 
   const fetchSubjects = async () => {
     try {
-      const response = await axios.get('http://localhost:3000/api/subjects');
+      const response = await axios.get(`${API_BASE_URL}/api/subjects`);
       setSubjects(response.data);
     } catch (error) {
       console.error('Error fetching subjects:', error);
@@ -52,7 +57,7 @@ const HomePage = () => {
 
   const fetchTopics = async (subjectId: string) => {
     try {
-      const response = await axios.get(`http://localhost:3000/api/topics/${subjectId}`);
+      const response = await axios.get(`${API_BASE_URL}/api/topics/subject/${subjectId}`);
       setTopics(response.data);
     } catch (error) {
       console.error('Error fetching topics:', error);
@@ -66,7 +71,7 @@ const HomePage = () => {
     }
 
     try {
-      const response = await axios.post('http://localhost:3000/api/assessment/start', {
+      const response = await axios.post(`${API_BASE_URL}/api/assessment/start`, {
         subjectIds: [selectedSubject],
         topicIds: selectedTopics,
         duration
@@ -267,13 +272,37 @@ const HomePage = () => {
                   width: '100%',
                   py: 1.5,
                   fontSize: '1.1rem',
+                  mb: 2,
                 }}
               >
                 Start Assessment
               </Button>
+
+              {selectedTopics.length > 0 && (
+                <Button
+                  variant="outlined"
+                  size="large"
+                  onClick={() => setShowRecap(true)}
+                  sx={{
+                    width: '100%',
+                    py: 1.5,
+                    fontSize: '1.1rem',
+                  }}
+                >
+                  Quick Recap
+                </Button>
+              )}
             </Box>
           </Grid>
         </Grid>
+
+        {/* Quick Recap Dialog */}
+        <QuickRecap
+          open={showRecap}
+          onClose={() => setShowRecap(false)}
+          subject={selectedSubjectName}
+          topics={selectedTopics}
+        />
 
         {/* Features Section */}
         <Box sx={{ mt: 12 }}>
@@ -337,7 +366,34 @@ const HomePage = () => {
             ))}
           </Grid>
         </Box>
+
+        <IconButton
+          sx={{
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            color: 'rgba(255, 255, 255, 0.7)',
+            '&:hover': {
+              color: 'primary.main',
+              transform: 'scale(1.3)',
+            },
+            transition: 'all 0.3s ease',
+            width: '48px',
+            height: '48px',
+            '& .MuiSvgIcon-root': {
+              fontSize: '2rem',
+            },
+          }}
+          onClick={() => setOpenAdminAuth(true)}
+        >
+          <AdminIcon />
+        </IconButton>
       </Box>
+
+      <AdminAuthDialog
+        open={openAdminAuth}
+        onClose={() => setOpenAdminAuth(false)}
+      />
     </Container>
   );
 };

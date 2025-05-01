@@ -4,32 +4,42 @@ import { Topic } from '../models/Topic';
 
 const router = express.Router();
 
-// Get all topics for a subject
-router.get('/:subjectId', async (req, res) => {
+// Get all topics
+router.get('/', async (req, res) => {
   try {
-    const topics = await Topic.find({ subjectId: req.params.subjectId });
+    const topics = await Topic.find();
     res.json(topics);
   } catch (error) {
+    console.error('Error fetching topics:', error);
     res.status(500).json({ message: 'Error fetching topics' });
   }
 });
 
-// Create a new topic (Admin only)
-router.post('/:subjectId', authenticateAdmin, async (req, res) => {
+// Get topics by subject
+router.get('/subject/:subjectId', async (req, res) => {
   try {
-    const topic = new Topic({
-      ...req.body,
-      subjectId: req.params.subjectId
-    });
+    const topics = await Topic.find({ subjectId: req.params.subjectId });
+    res.json(topics);
+  } catch (error) {
+    console.error('Error fetching topics by subject:', error);
+    res.status(500).json({ message: 'Error fetching topics' });
+  }
+});
+
+// Create a new topic
+router.post('/', async (req, res) => {
+  try {
+    const topic = new Topic(req.body);
     await topic.save();
     res.status(201).json(topic);
   } catch (error) {
+    console.error('Error creating topic:', error);
     res.status(400).json({ message: 'Error creating topic' });
   }
 });
 
-// Update a topic (Admin only)
-router.put('/:id', authenticateAdmin, async (req, res) => {
+// Update a topic
+router.put('/:id', async (req, res) => {
   try {
     const topic = await Topic.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!topic) {
@@ -37,12 +47,13 @@ router.put('/:id', authenticateAdmin, async (req, res) => {
     }
     res.json(topic);
   } catch (error) {
+    console.error('Error updating topic:', error);
     res.status(400).json({ message: 'Error updating topic' });
   }
 });
 
-// Delete a topic (Admin only)
-router.delete('/:id', authenticateAdmin, async (req, res) => {
+// Delete a topic
+router.delete('/:id', async (req, res) => {
   try {
     const topic = await Topic.findByIdAndDelete(req.params.id);
     if (!topic) {
@@ -50,6 +61,7 @@ router.delete('/:id', authenticateAdmin, async (req, res) => {
     }
     res.json({ message: 'Topic deleted successfully' });
   } catch (error) {
+    console.error('Error deleting topic:', error);
     res.status(400).json({ message: 'Error deleting topic' });
   }
 });

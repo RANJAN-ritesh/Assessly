@@ -20,6 +20,9 @@ import axios from 'axios';
 import { languageOptions, LanguageOption } from '../languageOptions';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { format } from 'date-fns';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
 interface Problem {
   _id: string;
@@ -47,6 +50,7 @@ const AssessmentPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { problems = [], duration = 1, startTime = new Date().toISOString() } = (location.state as AssessmentData) || {};
+  const [isAssessmentEnded, setIsAssessmentEnded] = useState(false);
   
   // If no problems are provided, redirect to home
   useEffect(() => {
@@ -226,6 +230,14 @@ const AssessmentPage = () => {
         startTime,
         endTime,
         totalTimeSpent,
+        answers: problems.map(problem => ({
+          problemId: problem._id,
+          code: problemStates[problem._id].code,
+          language: problemStates[problem._id].language.value,
+          timeSpent: problemStates[problem._id].timeSpent,
+          hasAttempted: problemStates[problem._id].hasAttempted,
+          hasRun: problemStates[problem._id].hasRun
+        })),
         metrics: {
           totalProblems: problems.length,
           attemptedCount,
@@ -234,13 +246,19 @@ const AssessmentPage = () => {
         }
       };
 
-      await axios.post('http://localhost:3000/api/assessment/end', {
+      const response = await axios.post(`${API_BASE_URL}/api/assessment/end`, {
         assessmentData: assessmentSummary
       });
 
-      navigate('/summary', { state: assessmentSummary });
+      if (response.data.message === 'Assessment completed successfully') {
+        setIsAssessmentEnded(true);
+        navigate('/summary', { state: assessmentSummary });
+      } else {
+        throw new Error('Failed to complete assessment');
+      }
     } catch (error) {
       console.error('Error ending assessment:', error);
+      // You might want to show an error message to the user here
     }
   };
 
@@ -259,6 +277,60 @@ const AssessmentPage = () => {
     return `${hours.toString().padStart(2, '0')}:${minutes
       .toString()
       .padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const handleDownload = async () => {
+    try {
+      const endTime = new Date().toISOString();
+      const totalTimeSpent = Object.values(problemStates).reduce((acc, state) => acc + state.timeSpent, 0);
+      const attemptedCount = Object.values(problemStates).filter(state => state.hasAttempted).length;
+      const ranCodeCount = Object.values(problemStates).filter(state => state.hasRun).length;
+      const skippedCount = problems.length - attemptedCount;
+
+      const assessmentData = {
+        problems: problems.map(problem => ({
+          ...problem,
+          state: problemStates[problem._id]
+        })),
+        duration,
+        startTime,
+        endTime,
+        totalTimeSpent,
+        answers: problems.map(problem => ({
+          problemId: problem._id,
+          code: problemStates[problem._id].code,
+          language: problemStates[problem._id].language.value,
+          timeSpent: problemStates[problem._id].timeSpent,
+          hasAttempted: problemStates[problem._id].hasAttempted,
+          hasRun: problemStates[problem._id].hasRun
+        })),
+        metrics: {
+          totalProblems: problems.length,
+          attemptedCount,
+          skippedCount,
+          ranCodeCount
+        }
+      };
+
+      const response = await axios.post(
+        `${API_BASE_URL}/api/assessment/download`,
+        { assessmentData },
+        { responseType: 'blob' }
+      );
+
+      // Create a blob URL for the PDF
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `assessment-${format(new Date(endTime), 'yyyy-MM-dd-HH-mm')}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading assessment:', error);
+      // You might want to show an error message to the user here
+    }
   };
 
   return (
@@ -291,14 +363,25 @@ const AssessmentPage = () => {
             <Typography variant="h6" sx={{ color: '#3291ff' }}>
               {formatTime(timeLeft)}
             </Typography>
-            <Button 
-              variant="outlined" 
-              color="error" 
-              onClick={handleEndAssessment}
-              sx={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}
-            >
-              End Assessment
-            </Button>
+            {!isAssessmentEnded ? (
+              <Button 
+                variant="outlined" 
+                color="error" 
+                onClick={handleEndAssessment}
+                sx={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}
+              >
+                End Assessment
+              </Button>
+            ) : (
+              <Button 
+                variant="outlined" 
+                color="primary" 
+                onClick={handleDownload}
+                sx={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}
+              >
+                Download PDF
+              </Button>
+            )}
           </Box>
         </Paper>
 

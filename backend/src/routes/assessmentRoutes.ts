@@ -49,9 +49,40 @@ router.post('/start', async (req, res) => {
 router.post('/end', async (req, res) => {
   try {
     const { assessmentData } = req.body;
-    // Here you can store the assessment data if needed
-    res.json({ message: 'Assessment completed successfully' });
+    
+    if (!assessmentData) {
+      return res.status(400).json({ message: 'Assessment data is required' });
+    }
+
+    // Validate required fields
+    const requiredFields = ['startTime', 'endTime', 'duration', 'problems', 'answers'];
+    for (const field of requiredFields) {
+      if (!assessmentData[field]) {
+        return res.status(400).json({ message: `Missing required field: ${field}` });
+      }
+    }
+
+    // Calculate total time spent
+    const startTime = new Date(assessmentData.startTime);
+    const endTime = new Date(assessmentData.endTime);
+    const totalTimeSpent = Math.floor((endTime.getTime() - startTime.getTime()) / 1000); // in seconds
+
+    // Add total time spent to assessment data
+    const completedAssessment = {
+      ...assessmentData,
+      totalTimeSpent,
+      completedAt: new Date().toISOString(),
+      status: 'completed'
+    };
+
+    // Here you can store the assessment data in a database if needed
+    // For now, we'll just return the completed assessment data
+    res.json({
+      message: 'Assessment completed successfully',
+      assessment: completedAssessment
+    });
   } catch (error) {
+    console.error('Error ending assessment:', error);
     res.status(500).json({ message: 'Error ending assessment' });
   }
 });
@@ -60,7 +91,17 @@ router.post('/end', async (req, res) => {
 router.post('/download', async (req, res) => {
   try {
     const { assessmentData } = req.body;
-    const doc = new PDFDocument();
+    
+    if (!assessmentData) {
+      return res.status(400).json({ message: 'Assessment data is required' });
+    }
+
+    // Create a new PDF document with proper configuration
+    const doc = new PDFDocument({
+      size: 'A4',
+      margin: 50,
+      bufferPages: true
+    });
 
     // Set response headers
     res.setHeader('Content-Type', 'application/pdf');
@@ -119,6 +160,11 @@ router.post('/download', async (req, res) => {
       .moveDown(0.5);
 
     assessmentData.problems.forEach((problem: any, index: number) => {
+      // Check if we need a new page
+      if (doc.y > 700) {
+        doc.addPage();
+      }
+
       doc
         .fontSize(14)
         .font('Helvetica-Bold')
@@ -133,7 +179,10 @@ router.post('/download', async (req, res) => {
 
       doc
         .font('Helvetica')
-        .text(problem.description)
+        .text(problem.description, {
+          width: 500,
+          align: 'left'
+        })
         .moveDown(0.5);
 
       doc
@@ -149,7 +198,10 @@ router.post('/download', async (req, res) => {
           .text('Your Solution:', { underline: true })
           .moveDown(0.2)
           .font('Courier')
-          .text(problem.state.code)
+          .text(problem.state.code, {
+            width: 500,
+            align: 'left'
+          })
           .moveDown();
       }
 
@@ -165,9 +217,62 @@ router.post('/download', async (req, res) => {
 
     // Finalize the PDF
     doc.end();
+
+    // Handle PDF generation errors
+    doc.on('error', (err) => {
+      console.error('PDF generation error:', err);
+      res.status(500).json({ message: 'Error generating PDF' });
+    });
   } catch (error) {
     console.error('Error generating PDF:', error);
     res.status(500).json({ message: 'Error generating PDF' });
+  }
+});
+
+// Test PDF generation
+router.get('/test-download', async (req, res) => {
+  try {
+    // Create a new PDF document with proper configuration
+    const doc = new PDFDocument({
+      size: 'A4',
+      margin: 50,
+      bufferPages: true
+    });
+
+    // Set response headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=test.pdf'
+    );
+
+    // Pipe the PDF document to the response
+    doc.pipe(res);
+
+    // Add some test content
+    doc
+      .fontSize(24)
+      .font('Helvetica-Bold')
+      .text('Test PDF', { align: 'center' })
+      .moveDown();
+
+    doc
+      .fontSize(12)
+      .font('Helvetica')
+      .text('This is a test PDF document.')
+      .text('If you can see this, PDF generation is working correctly.');
+
+    // Finalize the PDF
+    doc.end();
+
+    // Handle PDF generation errors
+    doc.on('error', (err) => {
+      console.error('PDF generation error:', err);
+      res.status(500).json({ message: 'Error generating PDF' });
+    });
+  } catch (error) {
+    console.error('Error generating test PDF:', error);
+    res.status(500).json({ message: 'Error generating test PDF' });
   }
 });
 
