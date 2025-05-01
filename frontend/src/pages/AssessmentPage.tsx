@@ -179,7 +179,7 @@ const AssessmentPage = () => {
     setOutputDetails(null);
 
     try {
-      const response = await axios.post('http://localhost:3000/api/run', {
+      const response = await axios.post(`${API_BASE_URL}/api/run`, {
         code,
         languageId: selectedLanguage.id,
         input: customInput,
@@ -588,6 +588,7 @@ const AssessmentPage = () => {
                       background: 'rgba(0, 0, 0, 0.2)',
                       border: '1px solid rgba(255, 255, 255, 0.1)',
                       borderRadius: 1,
+                      height: '150px',
                       maxHeight: '150px',
                       overflow: 'auto',
                     }}
@@ -595,7 +596,7 @@ const AssessmentPage = () => {
                     <Typography variant="subtitle2" sx={{ color: '#0070f3', mb: 1 }}>
                       Output:
                     </Typography>
-                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '0.8rem' }}>
                       {output}
                     </pre>
                     {outputDetails && (

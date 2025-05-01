@@ -131,6 +131,55 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Thanks to all contributors who have helped shape this platform
 - Special thanks to the open-source community for the tools and libraries used
 
+## Environment Variables
+
+- **Root `.env` (for backend):** Place in the project root (assessment-go/.env). Required for backend secrets and Judge0 integration.
+  - `MONGODB_URI=...`
+  - `PORT=3001`
+  - `GEMINI_API_KEY=...`
+  - `JUDGE0_URL=...`
+  - `JUDGE0_HOST=...`
+  - `JUDGE0_KEY=...`
+- **Frontend `.env` (for Vite):** Place in `frontend/.env`. Only variables prefixed with `VITE_` are exposed to the frontend.
+  - `VITE_API_BASE_URL=http://localhost:3001`
+  - `VITE_GEMINI_API_KEY=...`
+
+## Recent Features & UI Updates
+
+- **Admin Dashboard:**
+  - Bulk upload with improved button UI (fixed size, animated close, consistent child button sizes)
+  - Consistent padding and spacing for all admin actions
+- **Landing Page:**
+  - Animated gradient for the ASSESSLY title (blue, purple, maroon, green, river-like flow)
+- **Assessment Page:**
+  - Judge0 code execution output box: adjustable height (now 150px), smaller font size for output, improved scrollability
+
+## Troubleshooting
+
+- **Judge0 API Key Error:**
+  - If you see `Invalid API key` in backend logs, double-check your `JUDGE0_KEY` in the root `.env` and restart the backend.
+- **Environment Variables Not Loading:**
+  - Ensure the backend loads the root `.env` (see `src/index.ts` for explicit dotenv config).
+  - For frontend, only `VITE_` variables are available in code.
+- **CORS Issues:**
+  - Make sure the backend CORS config allows your frontend's port (default: 5173).
+
+## Usage
+
+- **Start Backend:**
+  ```sh
+  cd backend
+  npm install
+  npm run dev
+  ```
+- **Start Frontend:**
+  ```sh
+  cd frontend
+  npm install
+  npm run dev
+  ```
+
 ---
+For more details, see comments in the code or ask the maintainer.
 
 For more information or support, please open an issue in the repository. 
