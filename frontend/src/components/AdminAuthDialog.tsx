@@ -36,8 +36,9 @@ const AdminAuthDialog: React.FC<AdminAuthDialogProps> = ({ open, onClose }) => {
       });
 
       if (response.data.token) {
-        // Store the JWT token
+        // Store the JWT token and authentication flag
         localStorage.setItem('adminToken', response.data.token);
+        localStorage.setItem('isAdminAuthenticated', 'true');
         onClose();
         navigate('/admin');
       }

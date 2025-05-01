@@ -122,13 +122,26 @@ const HomePage = () => {
             <Typography 
               variant="h1" 
               sx={{ 
-                background: 'linear-gradient(to right, #0070f3, #7928ca)',
+                background: 'linear-gradient(90deg, #0070f3, #4a90e2, #8b0000, #2e8b57, #0070f3)',
+                backgroundSize: '400% auto',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
+                animation: 'gradient 20s ease-in-out infinite',
                 mb: 2,
+                '@keyframes gradient': {
+                  '0%': {
+                    backgroundPosition: '0% center',
+                  },
+                  '50%': {
+                    backgroundPosition: '200% center',
+                  },
+                  '100%': {
+                    backgroundPosition: '400% center',
+                  },
+                },
               }}
             >
-              Code Assessment Platform
+              ASSESSLY: Personalized Coding Assessments
             </Typography>
             <Typography 
               variant="h5" 

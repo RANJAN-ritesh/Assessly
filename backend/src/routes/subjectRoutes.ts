@@ -1,8 +1,12 @@
 import express from 'express';
 import { authenticateAdmin } from '../middleware/auth';
 import { Subject } from '../models/Subject';
+import multer from 'multer';
+import { handleBulkUpload } from '../controllers/bulkUploadController';
 
 const router = express.Router();
+
+const upload = multer({ dest: 'uploads/' });
 
 // Get all subjects
 router.get('/', async (req, res) => {
@@ -60,5 +64,7 @@ router.delete('/:id', authenticateAdmin, async (req, res) => {
     res.status(400).json({ message: 'Error deleting subject' });
   }
 });
+
+router.post('/api/bulk-upload', upload.single('file'), handleBulkUpload);
 
 export default router; 
