@@ -14,6 +14,7 @@ import {
   TextField,
   InputAdornment,
   useTheme,
+  MenuItem,
 } from '@mui/material';
 import {
   BarChart,
@@ -61,6 +62,9 @@ interface AnalyticsViewProps {
 const AnalyticsView: React.FC<AnalyticsViewProps> = ({ data, loading }) => {
   const theme = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState<string>('');
+  const [selectedTopic, setSelectedTopic] = useState<string>('');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('');
 
   if (loading) {
     return (
@@ -99,7 +103,15 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ data, loading }) => {
     value,
   }));
 
-  // Calculate success rates and attempts
+  // Get unique subjects, topics, and difficulties for filters
+  const subjects = useMemo(() => [...new Set(data.map(subject => subject.name))], [data]);
+  const topics = useMemo(() => {
+    const allTopics = data.flatMap(subject => subject.topics.map(topic => topic.name));
+    return [...new Set(allTopics)];
+  }, [data]);
+  const difficulties = ['easy', 'medium', 'hard'];
+
+  // Filter problems based on selected filters
   const problemStats = useMemo(() => {
     const stats = data.reduce((acc, subject) => {
       subject.topics.forEach(topic => {
@@ -124,14 +136,20 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ data, loading }) => {
       successRate: number;
     }>);
 
-    return searchQuery
-      ? stats.filter(problem => 
-          problem.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    return stats.filter(problem => {
+      const matchesSearch = searchQuery
+        ? problem.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
           problem.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
           problem.topic.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      : stats;
-  }, [data, searchQuery]);
+        : true;
+
+      const matchesSubject = selectedSubject ? problem.subject === selectedSubject : true;
+      const matchesTopic = selectedTopic ? problem.topic === selectedTopic : true;
+      const matchesDifficulty = selectedDifficulty ? problem.difficulty === selectedDifficulty : true;
+
+      return matchesSearch && matchesSubject && matchesTopic && matchesDifficulty;
+    });
+  }, [data, searchQuery, selectedSubject, selectedTopic, selectedDifficulty]);
 
   // Custom colors based on theme
   const chartColors = {
@@ -241,32 +259,52 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ data, loading }) => {
               Problem Difficulty Distribution
             </Typography>
             <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={difficultyChartData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {difficultyChartData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={Object.values(chartColors)[index % Object.keys(chartColors).length]} 
-                    />
-                  ))}
-                </Pie>
+              <BarChart 
+                data={difficultyChartData}
+                margin={{ top: 16, right: 16, left: 0, bottom: 0 }}
+                barSize={27}
+              >
+                <CartesianGrid 
+                  strokeDasharray="3 3" 
+                  stroke={theme.palette.divider}
+                  vertical={false}
+                />
+                <XAxis 
+                  dataKey="name" 
+                  stroke={theme.palette.text.secondary}
+                  tick={{ fill: theme.palette.text.secondary }}
+                  axisLine={{ stroke: theme.palette.divider }}
+                  padding={{ left: 10, right: 10 }}
+                />
+                <YAxis 
+                  stroke={theme.palette.text.secondary}
+                  tick={{ fill: theme.palette.text.secondary }}
+                  axisLine={{ stroke: theme.palette.divider }}
+                  tickCount={7}
+                />
                 <Tooltip 
                   contentStyle={{ 
                     backgroundColor: theme.palette.background.paper,
                     border: `1px solid ${theme.palette.divider}`,
                     borderRadius: theme.shape.borderRadius,
+                    boxShadow: theme.shadows[2],
+                  }}
+                  cursor={{ fill: theme.palette.action.hover }}
+                />
+                <Legend 
+                  verticalAlign="top" 
+                  height={36}
+                  wrapperStyle={{
+                    paddingBottom: '20px'
                   }}
                 />
-              </PieChart>
+                <Bar 
+                  dataKey="value" 
+                  name="Problems" 
+                  fill={theme.palette.secondary.light}
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
             </ResponsiveContainer>
           </Paper>
         </Grid>
@@ -278,20 +316,67 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ data, loading }) => {
               <Typography variant="h6">
                 Problem Statistics
               </Typography>
-              <TextField
-                size="small"
-                placeholder="Search problems..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon />
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{ width: 300 }}
-              />
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <TextField
+                  select
+                  size="small"
+                  label="Subject"
+                  value={selectedSubject}
+                  onChange={(e) => setSelectedSubject(e.target.value)}
+                  sx={{ width: 150 }}
+                >
+                  <MenuItem value="">All Subjects</MenuItem>
+                  {subjects.map((subject) => (
+                    <MenuItem key={subject} value={subject}>
+                      {subject}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  select
+                  size="small"
+                  label="Topic"
+                  value={selectedTopic}
+                  onChange={(e) => setSelectedTopic(e.target.value)}
+                  sx={{ width: 150 }}
+                >
+                  <MenuItem value="">All Topics</MenuItem>
+                  {topics.map((topic) => (
+                    <MenuItem key={topic} value={topic}>
+                      {topic}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  select
+                  size="small"
+                  label="Difficulty"
+                  value={selectedDifficulty}
+                  onChange={(e) => setSelectedDifficulty(e.target.value)}
+                  sx={{ width: 150 }}
+                >
+                  <MenuItem value="">All Difficulties</MenuItem>
+                  {difficulties.map((difficulty) => (
+                    <MenuItem key={difficulty} value={difficulty}>
+                      {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  size="small"
+                  placeholder="Search problems..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{ width: 300 }}
+                />
+              </Box>
             </Box>
             <TableContainer sx={{ maxHeight: 400 }}>
               <Table stickyHeader>

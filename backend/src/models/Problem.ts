@@ -10,6 +10,12 @@ const problemSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  difficulty: {
+    type: String,
+    enum: ['easy', 'medium', 'hard'],
+    default: 'medium',
+    required: true
+  },
   subjectId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Subject',

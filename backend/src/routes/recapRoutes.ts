@@ -11,16 +11,29 @@ router.post('/', async (req, res) => {
     if (!topicIds || !Array.isArray(topicIds) || topicIds.length === 0) {
       return res.status(400).json({ error: 'topicIds are required.' });
     }
-    // Fetch recaps for the given topic IDs
-    const recaps = await Recap.find({ topicId: { $in: topicIds } });
-    // Fetch topic names for the recaps
+
+    // Fetch topics with their recaps
     const topics = await Topic.find({ _id: { $in: topicIds } });
-    const topicMap = Object.fromEntries(topics.map(t => [t._id.toString(), t.name]));
-    const result = recaps.map(r => ({
-      topicId: r.topicId,
-      name: topicMap[r.topicId.toString()] || '',
-      recap: r.recap
-    }));
+    const topicMap = Object.fromEntries(topics.map(t => [t._id.toString(), t]));
+
+    // Fetch additional recaps from Recap model
+    const recaps = await Recap.find({ topicId: { $in: topicIds } });
+    const recapMap = Object.fromEntries(recaps.map(r => [r.topicId.toString(), r]));
+
+    // Combine recaps from both models, preferring Recap model if available
+    const result = topicIds.map(topicId => {
+      const topic = topicMap[topicId.toString()];
+      const recap = recapMap[topicId.toString()];
+      
+      if (!topic) return null;
+
+      return {
+        topicId,
+        name: topic.name,
+        recap: recap ? recap.recap : topic.recap
+      };
+    }).filter(Boolean);
+
     res.json({ recaps: result });
   } catch (err) {
     console.error('Recap Fetch Error:', err);

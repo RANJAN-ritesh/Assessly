@@ -8,8 +8,11 @@ import {
   Box,
   CircularProgress,
   IconButton,
+  Paper,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
@@ -24,6 +27,16 @@ const QuickRecap: React.FC<QuickRecapProps> = ({ open, onClose, subject, topics 
   const [loading, setLoading] = useState(false);
   const [recaps, setRecaps] = useState<{ name: string; recap: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  const midnightBlueTheme = {
+    backgroundColor: '#1a1f2e',
+    color: '#e0e0e0',
+    borderColor: '#2a2f3e',
+    codeBackground: '#2a2f3e',
+    linkColor: '#64b5f6',
+    headingColor: '#ffffff',
+    blockquoteBorder: '#3a3f4e',
+  };
 
   const fetchRecap = async () => {
     setLoading(true);
@@ -119,19 +132,105 @@ const QuickRecap: React.FC<QuickRecapProps> = ({ open, onClose, subject, topics 
                 recaps.map((recap) => (
                   <Box key={recap.name} sx={{ mb: 3 }}>
                     <Typography variant="h6" sx={{ color: '#90caf9', mb: 1 }}>{recap.name}</Typography>
-                    <Typography
-                      variant="body1"
+                    <Paper
+                      elevation={0}
                       sx={{
-                        color: '#fff',
-                        whiteSpace: 'pre-wrap',
-                        lineHeight: 1.6,
-                        background: 'rgba(144,202,249,0.05)',
+                        padding: 3,
+                        backgroundColor: midnightBlueTheme.backgroundColor,
+                        color: midnightBlueTheme.color,
                         borderRadius: 2,
-                        p: 2,
+                        border: `1px solid ${midnightBlueTheme.borderColor}`,
+                        '& pre': {
+                          backgroundColor: midnightBlueTheme.codeBackground,
+                          padding: 2,
+                          borderRadius: 1,
+                          overflowX: 'auto',
+                          margin: '1em 0',
+                        },
+                        '& code': {
+                          backgroundColor: midnightBlueTheme.codeBackground,
+                          padding: '0.2em 0.4em',
+                          borderRadius: 2,
+                          fontSize: '0.9em',
+                          fontFamily: 'monospace',
+                        },
+                        '& a': {
+                          color: midnightBlueTheme.linkColor,
+                          textDecoration: 'none',
+                          '&:hover': {
+                            textDecoration: 'underline',
+                          },
+                        },
+                        '& h1, & h2, & h3, & h4, & h5, & h6': {
+                          color: midnightBlueTheme.headingColor,
+                          marginTop: 2,
+                          marginBottom: 1,
+                          fontWeight: 600,
+                        },
+                        '& h1': {
+                          fontSize: '2em',
+                          borderBottom: `1px solid ${midnightBlueTheme.borderColor}`,
+                          paddingBottom: '0.3em',
+                        },
+                        '& h2': {
+                          fontSize: '1.5em',
+                          borderBottom: `1px solid ${midnightBlueTheme.borderColor}`,
+                          paddingBottom: '0.3em',
+                        },
+                        '& h3': {
+                          fontSize: '1.25em',
+                        },
+                        '& p': {
+                          margin: '1em 0',
+                          lineHeight: 1.6,
+                        },
+                        '& blockquote': {
+                          borderLeft: `4px solid ${midnightBlueTheme.blockquoteBorder}`,
+                          paddingLeft: 2,
+                          marginLeft: 0,
+                          fontStyle: 'italic',
+                          margin: '1em 0',
+                          padding: '0.5em 1em',
+                          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        },
+                        '& table': {
+                          borderCollapse: 'collapse',
+                          width: '100%',
+                          marginBottom: 2,
+                          margin: '1em 0',
+                        },
+                        '& th, & td': {
+                          border: `1px solid ${midnightBlueTheme.borderColor}`,
+                          padding: '8px',
+                        },
+                        '& th': {
+                          backgroundColor: midnightBlueTheme.codeBackground,
+                          fontWeight: 600,
+                        },
+                        '& img': {
+                          maxWidth: '100%',
+                          borderRadius: 1,
+                          margin: '1em 0',
+                        },
+                        '& ul, & ol': {
+                          paddingLeft: 2,
+                          margin: '1em 0',
+                        },
+                        '& li': {
+                          margin: '0.5em 0',
+                          lineHeight: 1.6,
+                        },
+                        '& hr': {
+                          border: 'none',
+                          borderTop: `1px solid ${midnightBlueTheme.borderColor}`,
+                          margin: '2em 0',
+                        },
                       }}
                     >
-                      {recap.recap}
-                    </Typography>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {recap.recap}
+                      </ReactMarkdown>
+                    </Paper>
                   </Box>
                 ))
               ) : (

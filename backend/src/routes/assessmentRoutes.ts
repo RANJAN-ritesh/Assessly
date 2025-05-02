@@ -5,6 +5,87 @@ import { format } from 'date-fns';
 
 const router = express.Router();
 
+// Problem time estimates (in minutes)
+const PROBLEM_TIME_ESTIMATES = {
+  easy: { min: 15, max: 20 },
+  medium: { min: 20, max: 25 },
+  hard: { min: 25, max: 30 }
+};
+
+// Calculate optimal problem distribution based on duration
+const calculateProblemDistribution = (durationInHours: number) => {
+  const totalMinutes = durationInHours * 60;
+  
+  // Calculate average time per difficulty
+  const avgTimePerDifficulty = {
+    easy: (PROBLEM_TIME_ESTIMATES.easy.min + PROBLEM_TIME_ESTIMATES.easy.max) / 2,
+    medium: (PROBLEM_TIME_ESTIMATES.medium.min + PROBLEM_TIME_ESTIMATES.medium.max) / 2,
+    hard: (PROBLEM_TIME_ESTIMATES.hard.min + PROBLEM_TIME_ESTIMATES.hard.max) / 2
+  };
+
+  // Special handling for very short durations (less than 45 minutes)
+  if (totalMinutes < 45) {
+    return {
+      easyCount: 1,
+      mediumCount: 0,
+      hardCount: 0
+    };
+  }
+
+  // Special handling for short durations (less than 90 minutes)
+  if (totalMinutes < 90) {
+    return {
+      easyCount: 1,
+      mediumCount: 1,
+      hardCount: 0
+    };
+  }
+
+  // Calculate max problems that can fit in the duration
+  const maxProblemsBasedOnTime = Math.floor(totalMinutes / avgTimePerDifficulty.easy);
+  const maxProblems = Math.min(maxProblemsBasedOnTime, 10); // Cap at 10 problems
+
+  // Ensure we have at least one problem of each difficulty for normal durations
+  if (maxProblems < 3) {
+    return {
+      easyCount: 1,
+      mediumCount: 1,
+      hardCount: 1
+    };
+  }
+
+  // Calculate distribution ensuring total time fits within duration
+  let easyCount = Math.floor(maxProblems * 0.4);
+  let mediumCount = Math.floor(maxProblems * 0.4);
+  let hardCount = Math.max(1, maxProblems - easyCount - mediumCount);
+
+  // Calculate total time
+  let totalTime = (
+    easyCount * avgTimePerDifficulty.easy +
+    mediumCount * avgTimePerDifficulty.medium +
+    hardCount * avgTimePerDifficulty.hard
+  );
+
+  // Adjust counts if total time exceeds duration
+  while (totalTime > totalMinutes && (easyCount + mediumCount + hardCount) > 3) {
+    if (hardCount > 1) {
+      hardCount--;
+    } else if (mediumCount > 1) {
+      mediumCount--;
+    } else if (easyCount > 1) {
+      easyCount--;
+    }
+
+    totalTime = (
+      easyCount * avgTimePerDifficulty.easy +
+      mediumCount * avgTimePerDifficulty.medium +
+      hardCount * avgTimePerDifficulty.hard
+    );
+  }
+
+  return { easyCount, mediumCount, hardCount };
+};
+
 // Start assessment
 router.post('/start', async (req, res) => {
   try {
@@ -24,20 +105,73 @@ router.post('/start', async (req, res) => {
       return res.status(404).json({ message: 'No problems found for the selected criteria' });
     }
 
-    // Randomly select problems (you can adjust the number based on your requirements)
-    const selectedProblems = problems
-      .sort(() => 0.5 - Math.random())
-      .slice(0, 5); // Select 5 random problems
+    // Calculate optimal problem distribution
+    const { easyCount, mediumCount, hardCount } = calculateProblemDistribution(duration);
+
+    // Group problems by difficulty
+    const problemsByDifficulty = {
+      easy: problems.filter(p => p.difficulty === 'easy'),
+      medium: problems.filter(p => p.difficulty === 'medium'),
+      hard: problems.filter(p => p.difficulty === 'hard')
+    };
+
+    // Select problems ensuring topic coverage
+    const selectedProblems = [];
+    const usedTopics = new Set();
+    const usedSubjects = new Set();
+
+    // Helper function to select a problem
+    const selectProblem = (difficulty: 'easy' | 'medium' | 'hard', count: number) => {
+      const availableProblems = problemsByDifficulty[difficulty]
+        .filter(p => !usedTopics.has(p.topicId.toString())); // Avoid topic repetition
+
+      if (availableProblems.length === 0) {
+        // If no unique topics left, allow repetition
+        return problemsByDifficulty[difficulty]
+          .sort(() => 0.5 - Math.random())
+          .slice(0, count);
+      }
+
+      return availableProblems
+        .sort(() => 0.5 - Math.random())
+        .slice(0, count);
+    };
+
+    // Select problems for each difficulty level
+    const easyProblems = selectProblem('easy', easyCount);
+    const mediumProblems = selectProblem('medium', mediumCount);
+    const hardProblems = selectProblem('hard', hardCount);
+
+    // Combine and shuffle all selected problems
+    const allProblems = [...easyProblems, ...mediumProblems, ...hardProblems]
+      .sort(() => 0.5 - Math.random());
+
+    // Calculate total estimated time
+    const totalEstimatedTime = allProblems.reduce((total, problem) => {
+      const estimates = PROBLEM_TIME_ESTIMATES[problem.difficulty];
+      return total + (estimates.min + estimates.max) / 2;
+    }, 0);
+
+    // If total time exceeds duration, adjust the selection
+    if (totalEstimatedTime > duration * 60) {
+      // Remove problems starting from the end until we're within the time limit
+      while (totalEstimatedTime > duration * 60 && allProblems.length > 0) {
+        allProblems.pop();
+      }
+    }
 
     res.json({
-      problems: selectedProblems.map(problem => ({
+      problems: allProblems.map(problem => ({
         _id: problem._id,
         title: problem.title,
         description: problem.description,
-        languages: problem.languages
+        languages: problem.languages,
+        difficulty: problem.difficulty,
+        estimatedTime: PROBLEM_TIME_ESTIMATES[problem.difficulty]
       })),
       duration,
-      startTime: new Date().toISOString()
+      startTime: new Date().toISOString(),
+      totalEstimatedTime
     });
   } catch (error) {
     console.error('Error starting assessment:', error);
@@ -273,6 +407,108 @@ router.get('/test-download', async (req, res) => {
   } catch (error) {
     console.error('Error generating test PDF:', error);
     res.status(500).json({ message: 'Error generating test PDF' });
+  }
+});
+
+// Test function to verify problem selection logic
+const testProblemSelection = async () => {
+  const results = [];
+  try {
+    const testCases = [
+      { duration: 1, expectedMaxProblems: 4 }, // 1 hour
+      { duration: 2, expectedMaxProblems: 8 }, // 2 hours
+      { duration: 3, expectedMaxProblems: 10 }, // 3 hours (max 10 problems)
+      { duration: 0.5, expectedMaxProblems: 2 } // 30 minutes
+    ];
+
+    results.push('\nTesting Problem Selection Logic:');
+    results.push('--------------------------------');
+
+    for (const testCase of testCases) {
+      const { easyCount, mediumCount, hardCount } = calculateProblemDistribution(testCase.duration);
+      const totalProblems = easyCount + mediumCount + hardCount;
+      
+      results.push(`\nDuration: ${testCase.duration} hour(s)`);
+      results.push(`Expected max problems: ${testCase.expectedMaxProblems}`);
+      results.push(`Calculated distribution:`);
+      results.push(`- Easy problems: ${easyCount} (${Math.round((easyCount/totalProblems)*100)}%)`);
+      results.push(`- Medium problems: ${mediumCount} (${Math.round((mediumCount/totalProblems)*100)}%)`);
+      results.push(`- Hard problems: ${hardCount} (${Math.round((hardCount/totalProblems)*100)}%)`);
+      
+      // Calculate estimated time
+      const estimatedTime = (
+        easyCount * (PROBLEM_TIME_ESTIMATES.easy.min + PROBLEM_TIME_ESTIMATES.easy.max) / 2 +
+        mediumCount * (PROBLEM_TIME_ESTIMATES.medium.min + PROBLEM_TIME_ESTIMATES.medium.max) / 2 +
+        hardCount * (PROBLEM_TIME_ESTIMATES.hard.min + PROBLEM_TIME_ESTIMATES.hard.max) / 2
+      );
+      
+      results.push(`Total estimated time: ${Math.round(estimatedTime)} minutes`);
+      results.push(`Time limit: ${testCase.duration * 60} minutes`);
+      results.push(`Time utilization: ${Math.round((estimatedTime/(testCase.duration * 60))*100)}%`);
+    }
+
+    // Test with actual problems
+    const mockProblems = [
+      { difficulty: 'easy', topicId: '1' },
+      { difficulty: 'easy', topicId: '2' },
+      { difficulty: 'medium', topicId: '3' },
+      { difficulty: 'medium', topicId: '4' },
+      { difficulty: 'hard', topicId: '5' },
+      { difficulty: 'hard', topicId: '6' }
+    ];
+
+    results.push('\nTesting Topic Coverage:');
+    const selectedProblems = [];
+    const usedTopics = new Set();
+
+    // Test topic coverage logic
+    const selectProblem = (difficulty: 'easy' | 'medium' | 'hard', count: number) => {
+      const availableProblems = mockProblems
+        .filter(p => p.difficulty === difficulty && !usedTopics.has(p.topicId));
+
+      if (availableProblems.length === 0) {
+        return mockProblems
+          .filter(p => p.difficulty === difficulty)
+          .sort(() => 0.5 - Math.random())
+          .slice(0, count);
+      }
+
+      const selected = availableProblems
+        .sort(() => 0.5 - Math.random())
+        .slice(0, count);
+
+      selected.forEach(p => usedTopics.add(p.topicId));
+      return selected;
+    };
+
+    const easyProblems = selectProblem('easy', 2);
+    const mediumProblems = selectProblem('medium', 2);
+    const hardProblems = selectProblem('hard', 2);
+
+    results.push('\nSelected Problems:');
+    results.push('Easy: ' + easyProblems.map(p => p.topicId).join(', '));
+    results.push('Medium: ' + mediumProblems.map(p => p.topicId).join(', '));
+    results.push('Hard: ' + hardProblems.map(p => p.topicId).join(', '));
+    results.push('Used Topics: ' + Array.from(usedTopics).join(', '));
+
+  } catch (error) {
+    results.push('Error in test: ' + error);
+  }
+  
+  return results;
+};
+
+// Add test route
+router.get('/test-selection', async (req, res) => {
+  try {
+    const results = await testProblemSelection();
+    res.json({ 
+      message: 'Test completed successfully',
+      results: results.join('\n')
+    });
+  } catch (error) {
+    console.error('Error running test:', error);
+    res.status(500).json({ message: 'Error running test' });
   }
 });
 

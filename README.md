@@ -8,6 +8,12 @@ A modern, feature-rich assessment platform for conducting coding evaluations wit
 - **Multi-language Support**: Code editor supporting multiple programming languages
 - **Subject & Topic Selection**: Organized assessment structure by subjects and topics
 - **Problem Navigation**: Intuitive interface for moving between problems
+- **Smart Problem Selection**: Adaptive algorithm for optimal problem distribution based on:
+  - Assessment duration
+  - Problem difficulty
+  - Topic coverage
+  - Time constraints
+  - Candidate skill level
 
 ### Enhanced UI/UX
 - **Modern Dark Theme**: Sleek design with glassmorphism effects
@@ -17,17 +23,28 @@ A modern, feature-rich assessment platform for conducting coding evaluations wit
   - Responsive interactions
 - **Typography**: Enhanced readability with carefully selected fonts
 - **Navigation**: Improved problem navigation chips
+- **Analytics Dashboard**: Comprehensive view of problem statistics with:
+  - Subject/Topic/Difficulty filters
+  - Success rate visualization
+  - Attempt tracking
+  - Time analysis
 
 ### Assessment Management
 - **Comprehensive Timer System**
   - Global assessment countdown
   - Per-problem time tracking
   - Automatic submission on timeout
+  - Smart time allocation based on problem difficulty
 - **Problem State Tracking**
   - Time spent per problem
   - Attempt status monitoring
   - Code execution attempts
   - Language selection history
+- **Adaptive Problem Selection**
+  - Duration-based problem count
+  - Balanced difficulty distribution
+  - Topic coverage optimization
+  - Time-constrained selection
 
 ### Analytics & Reporting
 - **Detailed Summary Page**
@@ -40,6 +57,11 @@ A modern, feature-rich assessment platform for conducting coding evaluations wit
   - Time analytics visualization
   - Code solutions documentation
   - Performance metrics analysis
+- **Admin Analytics**
+  - Problem difficulty distribution
+  - Success rate analysis
+  - Topic coverage metrics
+  - Time utilization patterns
 
 ## 🚀 Getting Started
 
@@ -179,7 +201,180 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
   npm run dev
   ```
 
----
-For more details, see comments in the code or ask the maintainer.
+## 🔧 Smart Problem Selection Logic
+
+The platform uses an intelligent algorithm to select problems for assessments. Here's a detailed breakdown:
+
+### 1. Time Estimation Constants
+```typescript
+const PROBLEM_TIME_ESTIMATES = {
+  easy: { min: 15, max: 20 },    // 15-20 minutes per easy problem
+  medium: { min: 20, max: 25 },  // 20-25 minutes per medium problem
+  hard: { min: 25, max: 30 }     // 25-30 minutes per hard problem
+};
+```
+
+### 2. Algorithm Steps
+
+#### A. Duration Analysis
+1. Convert assessment duration to minutes
+2. Calculate average time per difficulty level
+3. Determine maximum possible problems based on duration
+4. Cap maximum problems at 10 to prevent overwhelming
+
+#### B. Special Cases Handling
+1. **Very Short Duration (< 45 minutes)**
+   - Select only 1 easy problem
+   - Focus on core concept assessment
+   - Time utilization: ~58%
+
+2. **Short Duration (< 90 minutes)**
+   - Select 1 easy + 1 medium problem
+   - Balance between challenge and completion
+   - Time utilization: ~67%
+
+3. **Normal Duration (≥ 90 minutes)**
+   - Apply standard distribution algorithm
+   - Ensure at least one problem of each difficulty
+   - Time utilization: 90-95%
+
+#### C. Problem Distribution Calculation
+1. Calculate initial distribution:
+   - 40% easy problems
+   - 40% medium problems
+   - 20% hard problems (minimum 1)
+
+2. Time-based adjustment:
+   ```typescript
+   let totalTime = (
+     easyCount * avgTimePerDifficulty.easy +
+     mediumCount * avgTimePerDifficulty.medium +
+     hardCount * avgTimePerDifficulty.hard
+   );
+   ```
+
+3. Iterative optimization:
+   - While totalTime > duration:
+     - Reduce hard problems first
+     - Then medium problems
+     - Finally easy problems
+   - Maintain minimum of 3 problems if possible
+
+#### D. Topic Coverage
+1. Track used topics to avoid repetition
+2. Prioritize unique topics for each difficulty
+3. Allow topic repetition only if necessary
+4. Ensure subject diversity
+
+### 3. Selection Process
+
+#### A. Problem Filtering
+1. Filter by difficulty level
+2. Filter by available topics
+3. Sort by topic coverage priority
+4. Randomize selection within constraints
+
+#### B. Time Validation
+1. Calculate total estimated time
+2. Verify against duration limit
+3. Adjust selection if needed
+4. Ensure buffer time for review
+
+### 4. Output Structure
+```typescript
+{
+  problems: [
+    {
+      difficulty: 'easy' | 'medium' | 'hard',
+      topicId: string,
+      estimatedTime: { min: number, max: number }
+    }
+  ],
+  totalEstimatedTime: number,
+  timeUtilization: number
+}
+```
+
+### 5. Optimization Factors
+
+#### A. Time Management
+- Buffer time for review
+- Progressive difficulty increase
+- Time allocation per difficulty
+- Total duration constraints
+
+#### B. Topic Coverage
+- Subject diversity
+- Topic progression
+- Learning objectives
+- Skill requirements
+
+#### C. Difficulty Balance
+- Skill-appropriate challenges
+- Progressive complexity
+- Balanced problem mix
+- Assessment goals
+
+### 6. Example Distributions
+
+#### A. 30-Minute Assessment
+```typescript
+{
+  easyCount: 1,
+  mediumCount: 0,
+  hardCount: 0,
+  totalTime: 18 minutes,
+  utilization: 58%
+}
+```
+
+#### B. 1-Hour Assessment
+```typescript
+{
+  easyCount: 1,
+  mediumCount: 1,
+  hardCount: 0,
+  totalTime: 40 minutes,
+  utilization: 67%
+}
+```
+
+#### C. 2-Hour Assessment
+```typescript
+{
+  easyCount: 2,
+  mediumCount: 2,
+  hardCount: 1,
+  totalTime: 108 minutes,
+  utilization: 90%
+}
+```
+
+#### D. 3-Hour Assessment
+```typescript
+{
+  easyCount: 4,
+  mediumCount: 3,
+  hardCount: 1,
+  totalTime: 165 minutes,
+  utilization: 92%
+}
+```
+
+### 7. Error Handling
+1. Insufficient problems:
+   - Log warning
+   - Adjust distribution
+   - Allow topic repetition
+
+2. Time overflow:
+   - Reduce problem count
+   - Prioritize core topics
+   - Maintain difficulty balance
+
+3. Topic exhaustion:
+   - Allow topic repetition
+   - Log selection details
+   - Maintain difficulty distribution
 
 For more information or support, please open an issue in the repository. 
