@@ -8,10 +8,14 @@ import problemRoutes from './routes/problemRoutes';
 import assessmentRoutes from './routes/assessmentRoutes';
 import recapRoutes from './routes/recapRoutes';
 import codeRunRoutes from './routes/codeRunRoutes';
+import aiRoutes from './routes/aiRoutes';
+import { monitorPerformance, monitorErrors, metricsEndpoint } from './middleware/monitoring';
 import path from 'path';
 import dotenv from 'dotenv';
 
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+// Always load .env from the root directory
+dotenv.config({ path: path.join(__dirname, '../../.env') });
+console.log('Gemini API Key (from root .env):', process.env.GEMINI_API_KEY);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -25,6 +29,10 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Monitoring middleware
+app.use(monitorPerformance);
+app.use(monitorErrors);
+
 // Connect to MongoDB
 connectDB();
 
@@ -37,6 +45,19 @@ app.use('/api/assessment', assessmentRoutes);
 app.use('/api/recap', recapRoutes);
 app.use('/api/recaps', recapRoutes);
 app.use('/api/run', codeRunRoutes);
+app.use('/api/ai', aiRoutes);
+
+// Metrics endpoint
+app.get('/api/metrics', metricsEndpoint);
+
+// Error handling middleware
+app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+  });
+});
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

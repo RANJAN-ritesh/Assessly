@@ -45,7 +45,8 @@ const AssessmentSummary = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [downloading, setDownloading] = React.useState(false);
-  const summaryData = location.state as AssessmentSummary;
+  const summaryData = location.state as AssessmentSummary & { gradingResults?: any[] };
+  const gradingResults = summaryData.gradingResults || [];
 
   if (!summaryData) {
     return (
@@ -251,6 +252,30 @@ const AssessmentSummary = () => {
                       </Typography>
                     </Grid>
                   </Grid>
+                  {gradingResults.length > 0 && (
+                    <Box sx={{ mt: 1, ml: 2 }}>
+                      <Typography variant="body2" color="secondary">
+                        <strong>Score:</strong>{' '}
+                        {(() => {
+                          const result = gradingResults.find(r => r.problemId === problem._id);
+                          return result && result.grading
+                            ? `${result.grading.score.overall}/100`
+                            : result && result.error
+                              ? `Error: ${result.error}`
+                              : 'N/A';
+                        })()}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>Feedback:</strong>{' '}
+                        {(() => {
+                          const result = gradingResults.find(r => r.problemId === problem._id);
+                          return result && result.grading
+                            ? (result.grading.feedback?.suggestions?.join(' ') || 'No feedback')
+                            : '';
+                        })()}
+                      </Typography>
+                    </Box>
+                  )}
                   {index < summaryData.problems.length - 1 && (
                     <Divider sx={{ mt: 2 }} />
                   )}

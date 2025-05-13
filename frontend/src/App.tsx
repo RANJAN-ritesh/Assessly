@@ -5,6 +5,7 @@ import HomePage from './pages/HomePage';
 import AssessmentPage from './pages/AssessmentPage';
 import AssessmentSummary from './pages/AssessmentSummary';
 import AdminDashboard from './pages/AdminDashboard';
+import AITestPage from './pages/AITestPage';
 
 const darkTheme = createTheme({
   palette: {
@@ -107,6 +108,7 @@ function App() {
           <Route path="/assessment" element={<AssessmentPage />} />
           <Route path="/summary" element={<AssessmentSummary />} />
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/ai-test" element={<AITestPage />} />
         </Routes>
       </Router>
     </ThemeProvider>

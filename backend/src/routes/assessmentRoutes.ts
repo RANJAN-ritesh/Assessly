@@ -209,11 +209,32 @@ router.post('/end', async (req, res) => {
       status: 'completed'
     };
 
-    // Here you can store the assessment data in a database if needed
-    // For now, we'll just return the completed assessment data
+    // --- Gemini Auto-Grading Integration ---
+    const { problems, answers } = assessmentData;
+    // answers: [{ problemId, code, language }]
+    // problems: [{ _id, ... }]
+    const { gradeSubmission } = require('../services/aiService');
+    const gradingResults = [];
+    for (const answer of answers) {
+      const problem = problems.find((p: any) => p._id === answer.problemId);
+      if (!problem) {
+        gradingResults.push({ problemId: answer.problemId, error: 'Problem not found' });
+        continue;
+      }
+      try {
+        const grading = await gradeSubmission({ problem, code: answer.code, language: answer.language });
+        gradingResults.push({ problemId: answer.problemId, grading });
+      } catch (err) {
+        gradingResults.push({ problemId: answer.problemId, error: 'Grading failed', details: (err as any).message });
+      }
+    }
+    // --- End Gemini Auto-Grading ---
+
+    // Return completed assessment and grading results
     res.json({
-      message: 'Assessment completed successfully',
-      assessment: completedAssessment
+      message: 'Assessment completed and graded successfully',
+      assessment: completedAssessment,
+      gradingResults
     });
   } catch (error) {
     console.error('Error ending assessment:', error);

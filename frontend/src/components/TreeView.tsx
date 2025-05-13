@@ -501,20 +501,32 @@ const TreeView: React.FC<TreeViewProps> = ({
 
       {/* View/Edit Problem/Recap Dialog */}
       {viewingItem && (
-        <MarkdownEditor
-          title={viewingItem.title}
-          content={viewingItem.content}
-          open={true}
-          onClose={() => setViewingItem(null)}
-          onSave={(content) => {
-            if (viewingItem.type === 'recap') {
+        viewingItem.type === 'recap' ? (
+          <MarkdownEditor
+            title={viewingItem.title}
+            content={viewingItem.content}
+            open={true}
+            onClose={() => setViewingItem(null)}
+            onSave={(content) => {
               onEditTopicRecap(viewingItem.id, content);
-            } else {
-              onEditProblem(viewingItem.id, { description: content });
-            }
-            setViewingItem(null);
-          }}
-        />
+              setViewingItem(null);
+            }}
+          />
+        ) : (
+          <Dialog open={true} onClose={() => setViewingItem(null)}>
+            <DialogTitle>Problem Preview</DialogTitle>
+            <DialogContent>
+              <Typography variant="h6" gutterBottom>{viewingItem.title}</Typography>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                Difficulty: {data.flatMap(s => s.topics).flatMap(t => t.problems).find(p => p._id === viewingItem.id)?.difficulty || 'N/A'}
+              </Typography>
+              <Typography style={{ whiteSpace: 'pre-line' }}>{viewingItem.content}</Typography>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setViewingItem(null)}>Close</Button>
+            </DialogActions>
+          </Dialog>
+        )
       )}
     </Box>
   );

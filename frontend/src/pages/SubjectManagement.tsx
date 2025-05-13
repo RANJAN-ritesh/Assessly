@@ -24,6 +24,8 @@ interface Subject {
   name: string;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+
 const SubjectManagement = () => {
   const navigate = useNavigate();
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -36,7 +38,7 @@ const SubjectManagement = () => {
 
   const fetchSubjects = async () => {
     try {
-      const response = await axios.get('http://localhost:3000/api/subjects');
+      const response = await axios.get(`${API_BASE_URL}/api/subjects`);
       setSubjects(response.data);
     } catch (error) {
       console.error('Error fetching subjects:', error);
@@ -45,7 +47,7 @@ const SubjectManagement = () => {
 
   const handleAddSubject = async () => {
     try {
-      await axios.post('http://localhost:3000/api/subjects', { name: newSubject });
+      await axios.post(`${API_BASE_URL}/api/subjects`, { name: newSubject });
       setNewSubject('');
       fetchSubjects();
     } catch (error) {
@@ -56,7 +58,7 @@ const SubjectManagement = () => {
   const handleUpdateSubject = async () => {
     if (!editingSubject) return;
     try {
-      await axios.put(`http://localhost:3000/api/subjects/${editingSubject._id}`, {
+      await axios.put(`${API_BASE_URL}/api/subjects/${editingSubject._id}`, {
         name: editingSubject.name,
       });
       setEditingSubject(null);
@@ -68,7 +70,7 @@ const SubjectManagement = () => {
 
   const handleDeleteSubject = async (id: string) => {
     try {
-      await axios.delete(`http://localhost:3000/api/subjects/${id}`);
+      await axios.delete(`${API_BASE_URL}/api/subjects/${id}`);
       fetchSubjects();
     } catch (error) {
       console.error('Error deleting subject:', error);

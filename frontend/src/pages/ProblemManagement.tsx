@@ -42,7 +42,10 @@ interface Problem {
   subjectId: string;
   topicId: string;
   languages: string[];
+  difficulty: 'easy' | 'medium' | 'hard';
 }
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
 const ProblemManagement = () => {
   const navigate = useNavigate();
@@ -55,6 +58,7 @@ const ProblemManagement = () => {
     title: '',
     description: '',
     languages: [] as string[],
+    difficulty: 'medium' as 'easy' | 'medium' | 'hard'
   });
   const [editingProblem, setEditingProblem] = useState<Problem | null>(null);
 
@@ -78,7 +82,7 @@ const ProblemManagement = () => {
 
   const fetchSubjects = async () => {
     try {
-      const response = await axios.get('http://localhost:3000/api/subjects');
+      const response = await axios.get(`${API_BASE_URL}/api/subjects`);
       setSubjects(response.data);
     } catch (error) {
       console.error('Error fetching subjects:', error);
@@ -87,7 +91,7 @@ const ProblemManagement = () => {
 
   const fetchTopics = async () => {
     try {
-      const response = await axios.get(`http://localhost:3000/api/topics/${selectedSubject}`);
+      const response = await axios.get(`${API_BASE_URL}/api/topics/${selectedSubject}`);
       setTopics(response.data);
     } catch (error) {
       console.error('Error fetching topics:', error);
@@ -97,7 +101,7 @@ const ProblemManagement = () => {
   const fetchProblems = async () => {
     try {
       const response = await axios.get(
-        `http://localhost:3000/api/problems/${selectedSubject}/${selectedTopic}`
+        `${API_BASE_URL}/api/problems/topic/${selectedTopic}`
       );
       setProblems(response.data);
     } catch (error) {
@@ -107,20 +111,27 @@ const ProblemManagement = () => {
 
   const handleAddProblem = async () => {
     try {
-      await axios.post(`http://localhost:3000/api/problems/${selectedSubject}/${selectedTopic}`, {
+      if (!newProblem.languages.length) {
+        alert('Please select at least one programming language');
+        return;
+      }
+      await axios.post(`${API_BASE_URL}/api/problems`, {
         ...newProblem,
+        topicId: selectedTopic,
+        subjectId: selectedSubject
       });
-      setNewProblem({ title: '', description: '', languages: [] });
+      setNewProblem({ title: '', description: '', languages: [], difficulty: 'medium' });
       fetchProblems();
     } catch (error) {
       console.error('Error adding problem:', error);
+      alert('Failed to add problem. Please check all required fields.');
     }
   };
 
   const handleUpdateProblem = async () => {
     if (!editingProblem) return;
     try {
-      await axios.put(`http://localhost:3000/api/problems/${editingProblem._id}`, {
+      await axios.put(`${API_BASE_URL}/api/problems/${editingProblem._id}`, {
         ...editingProblem,
       });
       setEditingProblem(null);
@@ -132,7 +143,7 @@ const ProblemManagement = () => {
 
   const handleDeleteProblem = async (id: string) => {
     try {
-      await axios.delete(`http://localhost:3000/api/problems/${id}`);
+      await axios.delete(`${API_BASE_URL}/api/problems/${id}`);
       fetchProblems();
     } catch (error) {
       console.error('Error deleting problem:', error);
@@ -245,6 +256,22 @@ const ProblemManagement = () => {
                         />
                       ))}
                     </Box>
+                    <FormControl fullWidth>
+                      <InputLabel>Difficulty</InputLabel>
+                      <Select
+                        value={editingProblem ? editingProblem.difficulty : newProblem.difficulty}
+                        onChange={(e) =>
+                          editingProblem
+                            ? setEditingProblem({ ...editingProblem, difficulty: e.target.value as 'easy' | 'medium' | 'hard' })
+                            : setNewProblem({ ...newProblem, difficulty: e.target.value as 'easy' | 'medium' | 'hard' })
+                        }
+                        label="Difficulty"
+                      >
+                        <MenuItem value="easy">Easy</MenuItem>
+                        <MenuItem value="medium">Medium</MenuItem>
+                        <MenuItem value="hard">Hard</MenuItem>
+                      </Select>
+                    </FormControl>
                     <Button
                       variant="contained"
                       color="primary"
@@ -252,8 +279,8 @@ const ProblemManagement = () => {
                       disabled={
                         !(
                           editingProblem
-                            ? editingProblem.title && editingProblem.description
-                            : newProblem.title && newProblem.description
+                            ? editingProblem.title && editingProblem.description && editingProblem.languages.length > 0
+                            : newProblem.title && newProblem.description && newProblem.languages.length > 0
                         )
                       }
                     >

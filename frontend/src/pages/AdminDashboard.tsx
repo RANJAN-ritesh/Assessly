@@ -15,6 +15,12 @@ import {
   DialogContent,
   DialogActions,
   IconButton,
+  TextField,
+  InputAdornment,
+  Fade,
+  Select,
+  MenuItem,
+  Tooltip,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -23,6 +29,9 @@ import AnalyticsView from '../components/AnalyticsView';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DownloadIcon from '@mui/icons-material/Download';
 import CloseIcon from '@mui/icons-material/Close';
+import { ExpandMore, ExpandLess, Visibility, VisibilityOff, RocketLaunch } from '@mui/icons-material';
+import SyntaxHighlighter from 'react-syntax-highlighter';
+import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 
 interface Subject {
   _id: string;
@@ -49,6 +58,18 @@ interface Problem {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
+const problemTypes = [
+  { value: 'implementation', label: 'Implementation-based' },
+  { value: 'output', label: 'Output-based' },
+  { value: 'application', label: 'Application-based' },
+];
+
+const difficulties = [
+  { value: 'easy', label: 'Easy' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'hard', label: 'Hard' },
+];
+
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [tabValue, setTabValue] = useState(0);
@@ -61,6 +82,22 @@ const AdminDashboard: React.FC = () => {
   const [bulkError, setBulkError] = useState('');
   const fileInputRef = useRef(null);
   const [showBulkUploadOptions, setShowBulkUploadOptions] = useState(false);
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [apiKey, setApiKey] = useState('');
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [model, setModel] = useState('gemini-1.5-pro');
+  const [aiSubject, setAiSubject] = useState('');
+  const [aiTopics, setAiTopics] = useState('');
+  const [aiType, setAiType] = useState('implementation');
+  const [aiNum, setAiNum] = useState(3);
+  const [aiDifficulty, setAiDifficulty] = useState('easy');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState('');
+  const [aiProblems, setAiProblems] = useState<any[]>([]);
+  const [aiPreviewOpen, setAiPreviewOpen] = useState(false);
+  const [aiPushLoading, setAiPushLoading] = useState(false);
+  const [aiPushSuccess, setAiPushSuccess] = useState('');
+  const [aiPushError, setAiPushError] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('adminToken');
@@ -152,12 +189,24 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleAddProblem = async (topicId: string, problem: Omit<Problem, '_id' | 'topicId'>) => {
+  const handleAddProblem = async (topicId: string, problem: Omit<Problem, '_id' | 'topicId' | 'subjectId'>) => {
     try {
       const token = localStorage.getItem('adminToken');
+      // Find the subjectId for this topicId
+      let subjectId = '';
+      for (const subject of subjects) {
+        if (subject.topics.some((topic) => topic._id === topicId)) {
+          subjectId = subject._id;
+          break;
+        }
+      }
+      if (!subjectId) {
+        setError('Subject ID not found for this topic');
+        return;
+      }
       await axios.post(
         `${API_BASE_URL}/api/problems`,
-        { ...problem, topicId },
+        { ...problem, topicId, subjectId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       await fetchData();
@@ -321,8 +370,273 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const buildPrompt = () => {
+    const topicsList = aiTopics.split(/,|\n/).map(t => t.trim()).filter(Boolean);
+    return `Generate ${aiNum} ${aiType} coding problems for the following subject and topics:\nSubject: ${aiSubject}\nTopics: ${topicsList.join(', ')}\nAll problems should be of '${aiDifficulty}' difficulty.\nEach problem should be in this JSON format (no explanation, no markdown, no extra text):\n{\n  "title": "...",\n  "description": "...",\n  "difficulty": "${aiDifficulty}",\n  "testCases": [\n    {\n      "input": "...",\n      "output": "...",\n      "explanation": "..."\n    }\n  ],\n  "solution": {\n    "approach": "...",\n    "timeComplexity": "...",\n    "spaceComplexity": "...",\n    "keyConcepts": ["..."]\n  }\n}\nReturn an array of problems.`;
+  };
+
+  const handleGeminiGenerate = async () => {
+    setAiError('');
+    setAiProblems([]);
+    setAiPreviewOpen(false);
+    setAiLoading(true);
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`;
+      const body = {
+        contents: [{ parts: [{ text: buildPrompt() }] }]
+      };
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || 'Gemini API error');
+      }
+      let text = (await response.json()).candidates?.[0]?.content?.parts?.[0]?.text || '';
+      text = text.replace(/```json|```/g, '').trim();
+      let parsed: any[] = [];
+      try {
+        parsed = JSON.parse(text);
+        if (!Array.isArray(parsed)) throw new Error('Not an array');
+        setAiProblems(parsed);
+        setAiPreviewOpen(true);
+      } catch (e) {
+        setAiError('Could not parse Gemini response as an array of problems. Please try again.');
+      }
+    } catch (err: any) {
+      setAiError(err.message || 'Failed to fetch from Gemini');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleApproveAndPush = async () => {
+    if (!aiProblems.length) return;
+    setAiPushLoading(true);
+    setAiPushSuccess('');
+    setAiPushError('');
+    try {
+      const topicsList = aiTopics.split(/,|\n/).map(t => t.trim()).filter(Boolean);
+      let subjectObj = subjects.find(s => s.name === aiSubject);
+      const token = localStorage.getItem('adminToken');
+      // 1. Create subject if it doesn't exist
+      if (!subjectObj) {
+        const subjectRes = await axios.post(
+          `${API_BASE_URL}/api/subjects`,
+          { name: aiSubject },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        subjectObj = subjectRes.data;
+        // Refetch subjects to get the new subject with _id
+        await fetchData();
+        subjectObj = (subjects.find(s => s.name === aiSubject)) || subjectObj;
+      }
+      // 2. For each topic, create if it doesn't exist
+      const topicMap: Record<string, any> = {};
+      for (const topicName of topicsList) {
+        let topic = subjectObj.topics.find((t: any) => t.name === topicName);
+        if (!topic) {
+          const topicRes = await axios.post(
+            `${API_BASE_URL}/api/topics`,
+            { name: topicName, subjectId: subjectObj._id },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          topic = topicRes.data;
+          // Refetch subjects to get the new topic with _id
+          await fetchData();
+          subjectObj = (subjects.find(s => s.name === aiSubject)) || subjectObj;
+        }
+        topicMap[topicName] = topic;
+      }
+      // 3. Prepare problems with correct topicId
+      const problemsToPush = aiProblems.map((prob, idx) => {
+        const topicName = topicsList[idx % topicsList.length];
+        const topic = topicMap[topicName];
+        if (!topic) throw new Error(`Topic '${topicName}' could not be created.`);
+        return { ...prob, topicId: topic._id, subjectId: subjectObj._id, difficulty: aiDifficulty };
+      });
+      // 4. Push all problems
+      await Promise.all(problemsToPush.map(prob =>
+        axios.post(
+          `${API_BASE_URL}/api/problems`,
+          prob,
+          { headers: { Authorization: `Bearer ${token}` } }
+        )
+      ));
+      setAiPushSuccess('All problems successfully pushed to backend!');
+      setAiPreviewOpen(false);
+      await fetchData();
+    } catch (err: any) {
+      setAiPushError(err.message || 'Failed to push problems to backend');
+    } finally {
+      setAiPushLoading(false);
+    }
+  };
+
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+    <Container maxWidth="xl" sx={{ pt: 4 }}>
+      {/* AI Problem Generator : GEMINI Collapsible Panel */}
+      <Fade in={true} timeout={900}>
+        <Paper
+          elevation={8}
+          sx={{
+            mb: 4,
+            p: 0,
+            borderRadius: 4,
+            background: 'rgba(30,30,40,0.85)',
+            boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            overflow: 'hidden',
+            transition: 'box-shadow 0.3s cubic-bezier(.4,2,.6,1)',
+            position: 'relative',
+          }}
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              px: 3,
+              py: 2,
+              cursor: 'pointer',
+              userSelect: 'none',
+              background: 'linear-gradient(90deg, #23233b 0%, #1a1a2e 100%)',
+              borderBottom: aiPanelOpen ? '1px solid #333' : 'none',
+              transition: 'background 0.3s',
+            }}
+            onClick={() => setAiPanelOpen((open) => !open)}
+          >
+            <RocketLaunch sx={{ color: '#9C27B0', mr: 1, fontSize: 28, transition: 'transform 0.4s', transform: aiPanelOpen ? 'rotate(-10deg) scale(1.2)' : 'none' }} />
+            <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 700, letterSpacing: 1 }}>
+              AI Problem Generator : GEMINI
+            </Typography>
+            <Tooltip title={aiPanelOpen ? 'Collapse' : 'Expand'}>
+              <IconButton size="large" sx={{ color: '#fff' }}>
+                {aiPanelOpen ? <ExpandLess /> : <ExpandMore />}
+              </IconButton>
+            </Tooltip>
+          </Box>
+          <Collapse in={aiPanelOpen} timeout={600} unmountOnExit>
+            <Box sx={{ px: 3, py: 3, display: 'flex', flexDirection: 'column', gap: 2, background: 'rgba(20,20,30,0.85)' }}>
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                <TextField
+                  label="Gemini API Key"
+                  type={showApiKey ? 'text' : 'password'}
+                  value={apiKey}
+                  onChange={e => setApiKey(e.target.value)}
+                  sx={{ minWidth: 320, flex: 1 }}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton onClick={() => setShowApiKey(v => !v)} edge="end" size="small">
+                          {showApiKey ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    )
+                  }}
+                />
+                <Select
+                  value={model}
+                  onChange={e => setModel(e.target.value)}
+                  sx={{ minWidth: 180, color: '#fff', background: 'rgba(60,60,80,0.7)', borderRadius: 2 }}
+                >
+                  <MenuItem value="gemini-1.5-pro">Gemini 1.5 Pro</MenuItem>
+                  <MenuItem value="gemini-1.5-flash">Gemini 1.5 Flash</MenuItem>
+                  <MenuItem value="gemini-1.0-pro">Gemini 1.0 Pro</MenuItem>
+                </Select>
+                <Select
+                  value={aiDifficulty}
+                  onChange={e => setAiDifficulty(e.target.value)}
+                  sx={{ minWidth: 140, color: '#fff', background: 'rgba(60,60,80,0.7)', borderRadius: 2 }}
+                >
+                  {difficulties.map(d => (
+                    <MenuItem key={d.value} value={d.value}>{d.label}</MenuItem>
+                  ))}
+                </Select>
+              </Box>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <TextField
+                  label="Subject"
+                  value={aiSubject}
+                  onChange={e => setAiSubject(e.target.value)}
+                  sx={{ minWidth: 180, flex: 1 }}
+                />
+                <TextField
+                  label="Topics (comma or newline separated)"
+                  value={aiTopics}
+                  onChange={e => setAiTopics(e.target.value)}
+                  sx={{ minWidth: 220, flex: 2 }}
+                  multiline
+                  minRows={1}
+                  maxRows={3}
+                />
+                <Select
+                  value={aiType}
+                  onChange={e => setAiType(e.target.value)}
+                  sx={{ minWidth: 200, color: '#fff', background: 'rgba(60,60,80,0.7)', borderRadius: 2 }}
+                >
+                  {problemTypes.map(pt => (
+                    <MenuItem key={pt.value} value={pt.value}>{pt.label}</MenuItem>
+                  ))}
+                </Select>
+                <TextField
+                  label="# Problems"
+                  type="number"
+                  value={aiNum}
+                  onChange={e => setAiNum(Number(e.target.value))}
+                  sx={{ minWidth: 120 }}
+                  inputProps={{ min: 1, max: 10 }}
+                />
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  onClick={handleGeminiGenerate}
+                  disabled={!apiKey || !aiSubject || !aiTopics || aiLoading}
+                  sx={{ minWidth: 180, fontWeight: 600, fontSize: '1.1rem', boxShadow: '0 2px 12px #7928ca44' }}
+                  endIcon={<RocketLaunch sx={{ ml: 1, fontSize: 22, animation: aiLoading ? 'spin 1s linear infinite' : 'none', '@keyframes spin': { '100%': { transform: 'rotate(360deg)' } } }} />}
+                >
+                  {aiLoading ? 'Generating...' : 'Generate'}
+                </Button>
+                {aiError && <Alert severity="error" sx={{ ml: 2 }}>{aiError}</Alert>}
+                {aiPushSuccess && <Alert severity="success" sx={{ ml: 2 }}>{aiPushSuccess}</Alert>}
+                {aiPushError && <Alert severity="error" sx={{ ml: 2 }}>{aiPushError}</Alert>}
+              </Box>
+            </Box>
+          </Collapse>
+        </Paper>
+      </Fade>
+
+      {/* Preview Dialog for Generated Problems */}
+      <Dialog open={aiPreviewOpen} onClose={() => setAiPreviewOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Preview Generated Problems</DialogTitle>
+        <DialogContent>
+          {aiProblems.length ? (
+            aiProblems.map((prob, idx) => (
+              <Box key={idx} sx={{ mb: 3 }}>
+                <Typography variant="subtitle1" sx={{ mb: 1, color: '#9EE5FF', fontWeight: 700 }}>
+                  Problem {idx + 1}
+                </Typography>
+                <SyntaxHighlighter language="json" style={atomOneDark} customStyle={{ background: 'none', fontSize: 15, borderRadius: 8 }}>
+                  {JSON.stringify(prob, null, 2)}
+                </SyntaxHighlighter>
+              </Box>
+            ))
+          ) : (
+            <Typography color="error">No valid problems to preview.</Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAiPreviewOpen(false)} color="secondary">Cancel</Button>
+          <Button onClick={handleApproveAndPush} color="primary" variant="contained" disabled={aiPushLoading}>
+            {aiPushLoading ? 'Pushing...' : 'Approve & Push All'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Paper sx={{ p: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h4" component="h1">

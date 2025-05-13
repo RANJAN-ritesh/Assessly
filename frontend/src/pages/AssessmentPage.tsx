@@ -14,13 +14,15 @@ import {
   InputLabel,
   FormControl,
   TextField,
+  Dialog,
+  DialogContent,
 } from '@mui/material';
 import Editor from '@monaco-editor/react';
 import axios from 'axios';
 import { languageOptions, LanguageOption } from '../languageOptions';
 import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { format } from 'date-fns';
+import React from 'react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
@@ -44,6 +46,21 @@ interface AssessmentData {
   problems: Problem[];
   duration: number;
   startTime: string;
+}
+
+// ErrorBoundary for markdown rendering
+class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) {
+      return <div style={{color: 'red'}}>Failed to render content. Please contact admin.</div>;
+    }
+    return this.props.children;
+  }
 }
 
 const AssessmentPage = () => {
@@ -213,7 +230,11 @@ const AssessmentPage = () => {
     }
   };
 
+  // Add new state variable for grading
+  const [isGrading, setIsGrading] = useState(false);
+
   const handleEndAssessment = async () => {
+    setIsGrading(true);
     try {
       const endTime = new Date().toISOString();
       const totalTimeSpent = Object.values(problemStates).reduce((acc, state) => acc + state.timeSpent, 0);
@@ -250,15 +271,22 @@ const AssessmentPage = () => {
         assessmentData: assessmentSummary
       });
 
-      if (response.data.message === 'Assessment completed successfully') {
+      if (response.data.message && response.data.message.includes('Assessment completed')) {
         setIsAssessmentEnded(true);
-        navigate('/summary', { state: assessmentSummary });
+        navigate('/summary', { 
+          state: { 
+            ...assessmentSummary, 
+            gradingResults: response.data.gradingResults 
+          }
+        });
       } else {
         throw new Error('Failed to complete assessment');
       }
     } catch (error) {
       console.error('Error ending assessment:', error);
       // You might want to show an error message to the user here
+    } finally {
+      setIsGrading(false);
     }
   };
 
@@ -505,10 +533,22 @@ const AssessmentPage = () => {
                 '& li': {
                   mb: 1,
                 },
+                '& h3': {
+                  color: '#3291ff',
+                  mt: 3,
+                  mb: 2,
+                },
+                '& h4': {
+                  color: '#3291ff',
+                  mt: 2,
+                  mb: 1,
+                }
               }}>
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {problems[currentProblemIndex].description}
-                </ReactMarkdown>
+                <ErrorBoundary>
+                  <ReactMarkdown>
+                    {problems[currentProblemIndex].description}
+                  </ReactMarkdown>
+                </ErrorBoundary>
               </Box>
             </Paper>
           </Grid>
@@ -642,6 +682,15 @@ const AssessmentPage = () => {
             Next Problem
           </Button>
         </Box>
+
+        {/* Add Dialog for grading loader */}
+        <Dialog open={isGrading} PaperProps={{ sx: { bgcolor: 'background.paper', p: 3 } }}>
+          <DialogContent sx={{ textAlign: 'center' }}>
+            <CircularProgress size={60} sx={{ mb: 2 }} />
+            <Typography variant="h6">Grading your assessment...</Typography>
+            <Typography variant="body2" color="text.secondary">This may take a moment.</Typography>
+          </DialogContent>
+        </Dialog>
       </Container>
     </Box>
   );

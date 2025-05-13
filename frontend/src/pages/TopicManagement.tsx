@@ -34,6 +34,8 @@ interface Topic {
   subjectId: string;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+
 const TopicManagement = () => {
   const navigate = useNavigate();
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -54,7 +56,7 @@ const TopicManagement = () => {
 
   const fetchSubjects = async () => {
     try {
-      const response = await axios.get('http://localhost:3000/api/subjects');
+      const response = await axios.get(`${API_BASE_URL}/api/subjects`);
       setSubjects(response.data);
     } catch (error) {
       console.error('Error fetching subjects:', error);
@@ -63,7 +65,7 @@ const TopicManagement = () => {
 
   const fetchTopics = async () => {
     try {
-      const response = await axios.get(`http://localhost:3000/api/topics/${selectedSubject}`);
+      const response = await axios.get(`${API_BASE_URL}/api/topics/${selectedSubject}`);
       setTopics(response.data);
     } catch (error) {
       console.error('Error fetching topics:', error);
@@ -72,7 +74,7 @@ const TopicManagement = () => {
 
   const handleAddTopic = async () => {
     try {
-      await axios.post(`http://localhost:3000/api/topics/${selectedSubject}`, {
+      await axios.post(`${API_BASE_URL}/api/topics/${selectedSubject}`, {
         name: newTopic,
       });
       setNewTopic('');
@@ -85,7 +87,7 @@ const TopicManagement = () => {
   const handleUpdateTopic = async () => {
     if (!editingTopic) return;
     try {
-      await axios.put(`http://localhost:3000/api/topics/${editingTopic._id}`, {
+      await axios.put(`${API_BASE_URL}/api/topics/${editingTopic._id}`, {
         name: editingTopic.name,
       });
       setEditingTopic(null);
@@ -97,7 +99,7 @@ const TopicManagement = () => {
 
   const handleDeleteTopic = async (id: string) => {
     try {
-      await axios.delete(`http://localhost:3000/api/topics/${id}`);
+      await axios.delete(`${API_BASE_URL}/api/topics/${id}`);
       fetchTopics();
     } catch (error) {
       console.error('Error deleting topic:', error);
